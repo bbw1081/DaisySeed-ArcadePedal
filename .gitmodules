@@ -1,0 +1,6 @@
+[submodule "dependencies/libDaisy"]
+	path = dependencies/libDaisy
+	url = https://github.com/daisyaudio/libDaisy.git
+[submodule "dependencies/DaisySP"]
+	path = dependencies/DaisySP
+	url = https://github.com/daisyaudio/DaisySP.git
