@@ -35,7 +35,7 @@
 #include <string.h>
 #include "dev/oled_ssd130x.h"
 
-#include "effects.h"
+#include "effects/effects.h"
 
 /* Declare Namespaces */
 using namespace daisy;
@@ -61,19 +61,19 @@ EffectListing* effect_listing;
  * Initializes the struct to hold all of the effects
  */
 EffectListing* InitEffects(float sample_rate){
-	EffectListing* e;
+	static EffectListing e;
 
-	ChorusEffect* ce;
-	ce->Init(sample_rate);
-	e->effects[0] = ce;
+	static ChorusEffect ce;
+	ce.Init(sample_rate);
+	e.effects[0] = &ce;
 
-	FlangerEffect* fe;
-	fe->Init(sample_rate);
-	e->effects[1] = fe;
+	static FlangerEffect fe;
+	fe.Init(sample_rate);
+	e.effects[1] = &fe;
 
-	e->current_effect = 0;
+	e.current_effect = 0;
 
-	return e;
+	return &e;
 } /* end InitEffects() */
 
 /**
@@ -121,11 +121,19 @@ void DisplayText(const char* text){
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
+	static float smoothed_x = 0.5f;
+	static float smoothed_y = 0.5f;
+	const float smoothing = static_cast<float>(size)
+							/ (0.02f * hw.AudioSampleRate() + static_cast<float>(size));
+	smoothed_x += smoothing * (hw.adc.GetFloat(0) - smoothed_x);
+	smoothed_y += smoothing * (hw.adc.GetFloat(1) - smoothed_y);
+
 	BaseEffect* e = effect_listing->effects[effect_listing->current_effect];
-	e->SetParams(hw.adc.GetFloat(0), hw.adc.GetFloat(1));
+	e->SetParams(smoothed_x, smoothed_y);
 	for (size_t i = 0; i < size; i++)
 	{
-		out[0][i] = e->Process(in[0][i]);
+		float processed = e->Process(in[0][i]);
+		out[0][i] = processed;
 	}
 } /* end AudioCallBack() */
 
@@ -159,15 +167,14 @@ int main(void)
 	green_button.Init(seed::A2, GPIO::Mode::INPUT, GPIO::Pull::PULLUP);
 	red_button.Init(seed::A3, GPIO::Mode::INPUT, GPIO::Pull::PULLUP);
 
-	//start audio
-	hw.StartAudio(AudioCallback);
-
 	bool green_pressed = false;
 	bool red_pressed = false;
 
 	effect_listing = InitEffects(hw.AudioSampleRate());
 	DisplayText(effect_listing->effects[effect_listing->current_effect]->GetName());
 
+	//start audio
+	hw.StartAudio(AudioCallback);
 	/* MAIN LOOP*/
 	while(1) {
 		bool green_state = green_button.Read();

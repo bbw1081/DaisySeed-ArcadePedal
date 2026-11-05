@@ -8,7 +8,9 @@ OPT = -O3
 APP_TYPE = BOOT_QSPI
 
 # Sources
-CPP_SOURCES = arcade-pedal.cpp
+CPP_SOURCES = arcade-pedal.cpp \
+              effects/ChorusEffect.cpp \
+              effects/FlangerEffect.cpp
 
 # Library Locations
 LIBDAISY_DIR = dependencies/libDaisy/

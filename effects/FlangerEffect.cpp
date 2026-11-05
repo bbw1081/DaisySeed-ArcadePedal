@@ -2,8 +2,8 @@
 
 void FlangerEffect::Init(float sample_rate){
     flanger_.Init(sample_rate);
-    flanger_.SetFeedback(0);
-    SetParams(0.5, 0.5)
+    flanger_.SetFeedback(0.2);
+    SetParams(0.5, 0.5);
 }
 
 float FlangerEffect::Process(float in){ return flanger_.Process(in); }

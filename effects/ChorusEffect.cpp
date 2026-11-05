@@ -2,7 +2,7 @@
 
 void ChorusEffect::Init(float sample_rate){
     chorus_.Init(sample_rate);
-    chorus_.SetFeedback(0);
+    chorus_.SetFeedback(0.2);
     SetParams(0.5, 0.5);
 }
 
