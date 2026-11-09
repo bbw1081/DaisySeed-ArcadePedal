@@ -20,6 +20,10 @@
 /**
  * DAISY SEED PINOUT
  * 
+ * pin 12	<-- Display SCL
+ * pin 13	<-- Display SDA
+ * pin 16	<-- Audio In
+ * pin 18 	<-- Audio Out
  * pin 22	<-- X-Axis Potentiometer 	(10k ohms)
  * pin 23	<-- Y-Axis Potentiometer 	(10k ohms)
  * pin 24 	<-- Green arcade button 	(SPST switch)
@@ -44,12 +48,12 @@ using MyOledDisplay = OledDisplay<SSD130xI2c128x64Driver>;
 
 /* Declare Variables */
 DaisySeed hw; //daisy seed hardware
-MyOledDisplay display;
-MyOledDisplay::Config disp_cfg;
+MyOledDisplay display; //display
+MyOledDisplay::Config disp_cfg; //display configuration
 const int num_adc_channels = 2; //number of adc channels in use, 1 for each pot
 AdcChannelConfig adc_config[num_adc_channels]; //0 is x-xis, 1 is y-axis
-GPIO green_button;
-GPIO red_button;
+Switch green_button;
+Switch red_button;
 const int num_effects = 2;
 struct EffectListing {
 	BaseEffect* effects[num_effects];
@@ -59,6 +63,9 @@ EffectListing* effect_listing;
 
 /**
  * Initializes the struct to hold all of the effects
+ * 
+ * @param sample_rate the audio sample rate
+ * @return pointer to effect listing struct
  */
 EffectListing* InitEffects(float sample_rate){
 	static EffectListing e;
@@ -78,6 +85,9 @@ EffectListing* InitEffects(float sample_rate){
 
 /**
  * Calculates the maximum font size based on the number of characters in a line
+ * 
+ * @param text the input string
+ * @return the font size
  */
 FontDef CalculateFontSize(const char* text){
 	if(strlen(text) < 11) {
@@ -91,6 +101,8 @@ FontDef CalculateFontSize(const char* text){
 
 /**
  * Displays a string to the screen, can be 1 word or 2
+ * 
+ * @param text the text to display
  */
 void DisplayText(const char* text){
 	display.Fill(false); //clear the display
@@ -119,6 +131,13 @@ void DisplayText(const char* text){
 } /* end DisplayText() */
 
 
+/**
+ * Audio Interrupt handler
+ * 
+ * @param in audio in
+ * @param out audio out
+ * @param size audio buffer size
+ */
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
 	static float smoothed_x = 0.5f;
@@ -164,48 +183,44 @@ int main(void)
 	hw.adc.Start();
 
 	//2 arcade buttons
-	green_button.Init(seed::A2, GPIO::Mode::INPUT, GPIO::Pull::PULLUP);
-	red_button.Init(seed::A3, GPIO::Mode::INPUT, GPIO::Pull::PULLUP);
+	green_button.Init(seed::A2);
+	red_button.Init(seed::A3);
+	bool buttons_armed = true;
 
-	bool green_pressed = false;
-	bool red_pressed = false;
-
+	/* Initialize effect listing */
 	effect_listing = InitEffects(hw.AudioSampleRate());
 	DisplayText(effect_listing->effects[effect_listing->current_effect]->GetName());
 
 	//start audio
 	hw.StartAudio(AudioCallback);
+	
 	/* MAIN LOOP*/
 	while(1) {
-		bool green_state = green_button.Read();
-		bool red_state = red_button.Read();
-		//dumb implementation, TODO test and make smarter
-		if(!green_state && !green_pressed){
-			green_pressed = true;
+		green_button.Debounce();
+		red_button.Debounce();
+		const bool green_down = green_button.Pressed();
+		const bool red_down = red_button.Pressed();
 
-			effect_listing->current_effect -= 1;
-			if(effect_listing->current_effect < 0){
-				//wraparound
-				effect_listing->current_effect = num_effects - 1;
+		if(!green_down && !red_down) {
+			buttons_armed = true;
+		} else if(buttons_armed) {
+			buttons_armed = false;
+			if(green_down != red_down) {
+				if(green_down) {
+					effect_listing->current_effect -= 1;
+					if(effect_listing->current_effect < 0){
+						//wraparound
+						effect_listing->current_effect = num_effects - 1;
+					} /* end if */
+				} else {
+					effect_listing->current_effect += 1;
+					if(effect_listing->current_effect >= num_effects){
+						//wraparound
+						effect_listing->current_effect = 0;
+					} /* end if */
+				} /* end if */
+				DisplayText(effect_listing->effects[effect_listing->current_effect]->GetName());
 			} /* end if */
-
-			DisplayText(effect_listing->effects[effect_listing->current_effect]->GetName());
-		} else if(green_state){
-			green_pressed = false;
-		} /* end if */
-		
-		if(!red_state && !red_pressed){
-			red_pressed = true;
-
-			effect_listing->current_effect += 1;
-			if(effect_listing->current_effect >= num_effects){
-				//wraparound
-				effect_listing->current_effect = 0;
-			} /* end if */
-
-			DisplayText(effect_listing->effects[effect_listing->current_effect]->GetName());
-		} else if(red_state){
-			red_pressed = false;
 		} /* end if */
 	} /* end while */
 } /* end main() */
