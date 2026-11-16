@@ -54,7 +54,7 @@ const int num_adc_channels = 2; //number of adc channels in use, 1 for each pot
 AdcChannelConfig adc_config[num_adc_channels]; //0 is x-xis, 1 is y-axis
 Switch green_button;
 Switch red_button;
-const int num_effects = 2;
+const int num_effects = 3;
 struct EffectListing {
 	BaseEffect* effects[num_effects];
 	int current_effect;
@@ -77,6 +77,10 @@ EffectListing* InitEffects(float sample_rate){
 	static FlangerEffect fe;
 	fe.Init(sample_rate);
 	e.effects[1] = &fe;
+
+	static AutowahEffect ae;
+	ae.Init(sample_rate);
+	e.effects[2] = &ae;
 
 	e.current_effect = 0;
 

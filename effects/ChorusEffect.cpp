@@ -6,7 +6,9 @@ void ChorusEffect::Init(float sample_rate){
     SetParams(0.5, 0.5);
 }
 
-float ChorusEffect::Process(float in){ return chorus_.Process(in); }
+float ChorusEffect::Process(float in){
+    return chorus_.Process(in);
+}
 
 void ChorusEffect::SetParams(float x, float y){
     chorus_.SetDelay(x);
